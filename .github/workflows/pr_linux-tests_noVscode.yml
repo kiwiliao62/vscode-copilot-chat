@@ -1,0 +1,73 @@
+name: PR linux-tests
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  linux-tests:
+    name: Test (Linux)
+    # 1. 替换为 GitHub 免费托管的 Ubuntu 22.04 Runner
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.x'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+
+      - name: Install setuptools
+        run: pip install setuptools
+
+      # 3. 删除所有缓存相关步骤（原 restore、extract、create、save 步骤均移除）
+
+      - name: Install dependencies
+        # 移除缓存命中判断，每次都执行依赖安装
+        run: npm ci
+
+      - name: Install dotnet cli
+        run: npm run setup:dotnet
+
+      - name: TypeScript type checking
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Run vitest unit tests
+        run: npm run test:unit
+
+      - name: Run simulation tests with cache
+        run: npm run simulate-ci
+
+      - name: Run extension tests using VS Code
+        run: xvfb-run -a npm run test:extension
+
+      - name: Archive simulation output
+        if: always()
+        run: |
+          set -e
+          mkdir -p .simulation-archive
+          tar -czf .simulation-archive/simulation.tgz -C .simulation .
+
+      - name: Upload simulation output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-output-linux-${{ github.run_attempt }}
+          path: .simulation-archive/simulation.tgz

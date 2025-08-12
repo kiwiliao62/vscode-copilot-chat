@@ -1,4 +1,4 @@
-name: PR pr_linux-tests_saveHomedir
+name: PR linux-tests
 
 on: workflow_dispatch
 
@@ -68,7 +68,7 @@ jobs:
           mkdir -p ./artifact-output
           #打包当前目录（排除不必要文件）
           #注意：--exclude 可根据需求添加，如 node_modules、.git 等
-          tar -czf ./artifact-output/current-dir-archive.tgz \
+          tar -czf ./artifact-output/home.tgz \
           --exclude=./artifact-output \
           --exclude=.git \
           --exclude=node_modules \
@@ -81,3 +81,4 @@ jobs:
           path: ./artifact-output/home.tgz  #打包产物路径
           retention-days: 7  #保留天数（可选，默认 90 天）
           if-no-files-found: error  #若文件不存在则报错（可选）
+

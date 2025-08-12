@@ -1,77 +1,16 @@
-name: PR Checks
+name: PR pr_linux-tests_saveHomedir
 
-on:
-  push:
-    branches:
-      - 'gh-readonly-queue/main/*'
-  pull_request:
-    branches:
-      - main
-      - 'release/*'
+on: workflow_dispatch
 
 permissions:
   contents: read
   pull-requests: read
 
 jobs:
-  check-test-cache:
-    name: Check test cache
-    runs-on: [ self-hosted, 1ES.Pool=1es-vscode-ubuntu-22.04-x64 ]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.14.x'
-
-      - name: Restore build cache
-        uses: actions/cache/restore@v4
-        id: build-cache
-        with:
-          key: build_cache-${{ hashFiles('build/.cachesalt', 'package-lock.json') }}
-          path: .build/build_cache
-
-      - name: Extract build cache
-        if: steps.build-cache.outputs.cache-hit == 'true'
-        run: tar -xzf .build/build_cache/cache.tgz
-
-      - name: Install dependencies
-        if: steps.build-cache.outputs.cache-hit != 'true'
-        run: npm ci
-
-      - name: Ensure no duplicate cache keys
-        run: npx tsx test/base/cache-cli check
-
-      - name: Ensure no untrusted cache changes
-        run: npx tsx build/pr-check-cache-files.ts
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST: ${{ github.event.pull_request.number }}
-
-  check-telemetry:
-    name: Check telemetry events
-    runs-on: [ self-hosted, 1ES.Pool=1es-vscode-ubuntu-22.04-x64 ]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.14.x'
-
-      - name: Validate telemetry events
-        run: npx --package=@vscode/telemetry-extractor --yes vscode-telemetry-extractor -s . > /dev/null
-
   linux-tests:
     name: Test (Linux)
-    runs-on: [ self-hosted, 1ES.Pool=1es-vscode-ubuntu-22.04-x64 ]
+    # 1. 替换为 GitHub 免费托管的 Ubuntu 22.04 Runner
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -92,29 +31,8 @@ jobs:
       - name: Install setuptools
         run: pip install setuptools
 
-      - name: Restore build cache
-        uses: actions/cache/restore@v4
-        id: build-cache
-        with:
-          key: build_cache-${{ hashFiles('build/.cachesalt', 'package-lock.json') }}
-          path: .build/build_cache
-
-      - name: Extract build cache
-        if: steps.build-cache.outputs.cache-hit == 'true'
-        run: tar -xzf .build/build_cache/cache.tgz
-
       - name: Install dependencies
-        if: steps.build-cache.outputs.cache-hit != 'true'
         run: npm ci
-
-      - name: Create build cache archive
-        if: steps.build-cache.outputs.cache-hit != 'true'
-        run: |
-          set -e
-          mkdir -p .build
-          node build/listBuildCacheFiles.js .build/build_cache_list.txt
-          mkdir -p .build/build_cache
-          tar -czf .build/build_cache/cache.tgz --files-from .build/build_cache_list.txt
 
       - name: Install dotnet cli
         run: npm run setup:dotnet
@@ -136,81 +54,23 @@ jobs:
 
       - name: Run extension tests using VS Code
         run: xvfb-run -a npm run test:extension
-
-      - name: Archive simulation output
-        if: always()
+        
+      - name: Archive home
         run: |
-          set -e
-          mkdir -p .simulation-archive
-          tar -czf .simulation-archive/simulation.tgz -C .simulation .
+          #创建输出目录（避免与源码冲突）
+          pwd
+          mkdir -p /home/runner/artifact-output
+          #打包当前目录（排除不必要文件）
+          #注意：--exclude 可根据需求添加，如 node_modules、.git 等
+          tar -czf /home/runner/artifact-output/home.tgz \
+          --exclude=/home/runner/artifact-output \
+          /home/runner/*  #打包当前目录下所有文件
 
-      - name: Upload simulation output
-        if: always()
+      - name: Upload home
         uses: actions/upload-artifact@v4
         with:
-          name: simulation-output-linux-${{ github.run_attempt }}
-          path: .simulation-archive/simulation.tgz
+          name: home  #Artifact 名称（自定义）
+          path: /home/runner/artifact-output/home.tgz  #打包产物路径
+          retention-days: 7  #保留天数（可选，默认 90 天）
+          if-no-files-found: error  #若文件不存在则报错（可选）
 
-  windows-tests:
-    name: Test (Windows)
-    runs-on: [ self-hosted, 1ES.Pool=1es-vscode-windows-2022-x64 ]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.14.x'
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          architecture: 'x64'
-
-      - name: Install setuptools
-        run: pip install setuptools
-
-      - name: Restore build cache
-        uses: actions/cache/restore@v4
-        id: build-cache
-        with:
-          key: windows-build_cache-${{ hashFiles('build/.cachesalt', 'package-lock.json') }}
-          path: .build/build_cache
-
-      - name: Extract build cache
-        if: steps.build-cache.outputs.cache-hit == 'true'
-        run: 7z.exe x .build/build_cache/cache.7z -aoa
-
-      - name: Install dependencies
-        if: steps.build-cache.outputs.cache-hit != 'true'
-        run: npm ci
-
-      - name: Create build cache archive
-        if: steps.build-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -Force .build
-          node build/listBuildCacheFiles.js .build/build_cache_list.txt
-          mkdir -Force .build/build_cache
-          7z.exe a .build/build_cache/cache.7z -mx3 `@.build/build_cache_list.txt
-
-      - name: TypeScript type checking
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Compile
-        run: npm run compile
-
-      - name: Run vitest unit tests
-        run: npm run test:unit
-
-      - name: Run simulation tests with cache
-        run: npm run simulate-ci
-
-      - name: Run extension tests using VS Code
-        run: npm run test:extension

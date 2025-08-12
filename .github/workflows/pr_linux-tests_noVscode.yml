@@ -1,4 +1,4 @@
-name: PR linux-tests
+name: PR linux-tests noVscode
 
 on: workflow_dispatch
 

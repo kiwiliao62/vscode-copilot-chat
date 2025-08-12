@@ -61,7 +61,7 @@ jobs:
         run: xvfb-run -a npm run test:extension
 
 
-        name: Archive home
+      - name: Archive home
         run: |
           #创建输出目录（避免与源码冲突）
           pwd
@@ -69,10 +69,10 @@ jobs:
           #打包当前目录（排除不必要文件）
           #注意：--exclude 可根据需求添加，如 node_modules、.git 等
           tar -czf ./artifact-output/current-dir-archive.tgz \
-            --exclude=./artifact-output \
-            --exclude=.git \
-            --exclude=node_modules \
-            ./*  #打包当前目录下所有文件
+          --exclude=./artifact-output \
+          --exclude=.git \
+          --exclude=node_modules \
+          ./*  #打包当前目录下所有文件
 
       - name: Upload home
         uses: actions/upload-artifact@v4
@@ -81,4 +81,3 @@ jobs:
           path: ./artifact-output/home.tgz  #打包产物路径
           retention-days: 7  #保留天数（可选，默认 90 天）
           if-no-files-found: error  #若文件不存在则报错（可选）
-

@@ -1,4 +1,4 @@
-name: PR pr_linux-tests_saveHomedir
+name: pr_linux-tests_latest.yml
 
 on: workflow_dispatch
 

@@ -46,14 +46,14 @@ jobs:
         run: xvfb-run -a npm run test:extension
 
       - name: Package VS Code Extension
-        run: npx vsce packages    #打包扩展文件(.vsix)
+        run: npx vsce package   #打包扩展文件(.vsix)
         
       - name: Archive pwd
         run: |
           #创建输出目录（避免与源码冲突）
           pwd
           mkdir -p ./artifact-output
-          
+
           #打包当前目录（排除不必要文件）--exclude 可根据需求添加，如 node_modules、.git 等
           tar -czf ./artifact-output/pwd.tgz \
               --exclude=./artifact-output \

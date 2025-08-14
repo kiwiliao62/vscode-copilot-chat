@@ -36,7 +36,10 @@ jobs:
       - name: Compile
         run: npm run compile
 
-      - name: 打包当前目录
+      - name: Package VS Code Extension
+        run: npx vsce package   #打包扩展文件(.vsix)
+
+      - name: 打包当前目录(PWD)
         run: |
           # 仅排除.git相关目录和最终打包文件本身，避免递归问题
           $exclude = @('.git', 'winPWD.zip')
@@ -50,4 +53,3 @@ jobs:
           path: winPWD.zip
           retention-days: 7
           if-no-files-found: error
-    
